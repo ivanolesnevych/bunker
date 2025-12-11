@@ -1,32 +1,155 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Бункер — Игра</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Бункер — Гра</title>
 <style>
-body { font-family: Arial; padding: 20px; background: #eef; }
-h1, h2 { text-align: center; }
-#disaster { font-weight: bold; font-size: 20px; text-align: center; margin-bottom: 20px; }
-#myStats, #playersList { margin: 10px auto; max-width: 700px; padding: 15px; background: #f5f5ff; border-radius: 12px; border: 1px solid #ccc; }
-.player { background: #fafaff; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; padding: 10px; text-align: center; }
-.character { margin: 5px 0; }
-button { padding: 6px 10px; border-radius: 6px; border: none; background: #4a4aff; color: white; cursor: pointer; }
-button:hover { background: #3333ff; }
+  :root{
+    --bg:#0b0820;
+    --muted: rgba(243,232,255,0.65);
+    --soft:#cdb8ff;
+    --glass-border: rgba(255,255,255,0.06);
+    --green: #2ecc71;
+    --red: #ff4d4f;
+    --accent-start: #7b61ff;
+    --accent-end: #ff6fb3;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background: radial-gradient(circle at 10% 10%, #120021 0%, var(--bg) 35%, #05030a 100%);
+    color:#f3e8ff;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    padding:28px;
+  }
+
+  .top { display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:12px; }
+  .title { font-size:32px; font-weight:700; color:var(--soft); text-shadow: 0 6px 18px rgba(123,97,255,0.14); }
+  #endVotingBtn {
+    position:absolute; right:0; top:0;
+    background: linear-gradient(135deg,var(--accent-start),var(--accent-end));
+    color:#fff; border:0; padding:10px 16px; border-radius:20px; cursor:pointer;
+    box-shadow: 0 12px 36px rgba(123,97,255,0.14);
+  }
+  #endVotingBtn:disabled { opacity:0.45; cursor:not-allowed; transform:translateY(2px); }
+
+  .cat {
+    margin-top:14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:18px; padding:16px;
+    border:1px solid var(--glass-border); color:var(--muted); font-weight:600;
+    text-align:center;
+    backdrop-filter: blur(6px) saturate(120%);
+  }
+
+  .top-area { display:flex; gap:20px; margin-top:20px; flex-wrap:wrap; align-items:flex-start; }
+  .my-panel {
+    flex:1 1 420px; min-width:300px; background: rgba(255,255,255,0.03);
+    border-radius:14px; padding:18px; border:1px solid var(--glass-border);
+    backdrop-filter: blur(8px) saturate(120%);
+  }
+  .actions {
+    width:320px; min-width:260px; background: rgba(255,255,255,0.02); border-radius:14px; padding:16px;
+    border:1px solid var(--glass-border); backdrop-filter: blur(8px);
+  }
+  .section-title { color:var(--soft); font-weight:600; margin-bottom:12px; }
+
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:8px; transition: transform .12s, background .12s; }
+  .stat-row:hover { transform: translateY(-2px); }
+  .stat-key { color:var(--muted); font-size:14px; }
+  .stat-val { font-weight:700; }
+
+  .players-wrap { margin-top:26px; padding:18px; background: rgba(255,255,255,0.02); border-radius:14px; border:1px solid var(--glass-border); }
+  .players-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-top:20px; }
+
+  .player-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.035);
+    backdrop-filter: blur(6px); transition: transform .15s, box-shadow .15s, filter .18s, border-color .12s;
+    position:relative; min-height:220px;
+  }
+  .player-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,0.6); }
+  .player-card.kicked { filter: blur(4px) grayscale(.2); opacity:.45; pointer-events:none; }
+
+  .player-name { text-align:center; font-weight:800; color:var(--soft); margin-bottom:10px; font-size:16px; }
+  .stat-line { display:flex; justify-content:space-between; align-items:center; padding:6px 6px; margin:6px 0; border-radius:8px; }
+
+  .badge { padding:6px 10px; border-radius:10px; font-weight:700; font-size:13px; min-width:96px; text-align:center; color:#fff; cursor:pointer; }
+  .badge.hidden { background: linear-gradient(135deg,#ff6b6b,#ff4d4f); box-shadow:0 8px 18px rgba(255,77,79,0.12); }
+  .badge.open { background: linear-gradient(135deg,#34d399,#10b981); box-shadow:0 8px 18px rgba(16,185,129,0.12); }
+  .badge.own { background: linear-gradient(135deg,#ffd7a6,#ffb86b); color:#2c1300; box-shadow:0 8px 18px rgba(255,184,107,0.12); }
+
+  .player-actions { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+
+  .btn-small { background: linear-gradient(180deg,#c7f0ff,#9be8ff); color:#033; border-radius:12px; padding:8px 12px; border:none; cursor:pointer; font-weight:700; }
+  .btn-kick { background: linear-gradient(180deg,#ffd3d3,#ff9b9b); color:#330000; border-radius:12px; padding:8px 12px; border:none; cursor:pointer; font-weight:700; }
+
+  .voted { outline: 3px solid rgba(255,215,0,0.12); box-shadow: 0 10px 30px rgba(255,215,0,0.06); }
+
+  .badge .check { margin-left:8px; font-weight:900; }
+
+  @media (max-width:900px){
+    
+    .top-area { flex-direction:column; }
+    #endVotingBtn{ position:fixed; right:12px; top:12px; z-index:40;}
+  }
+
+  @media (min-width:900px){
+    
+    .players-grid { grid-template-columns: repeat(3, 1fr);}
+  }
+
+
+  
+
+  /* плавное появление */
+  .player-card, .my-panel { opacity:0; transform: translateY(8px); animation: fadeIn .4s ease forwards; }
+  .player-card { animation-delay: .08s; }
+  @keyframes fadeIn { to { opacity:1; transform: translateY(0);} }
 </style>
 </head>
 <body>
-<h1>Бункер — Игра началась</h1>
-<h2>Катастрофа</h2>
-<div id="disaster">...</div>
-<h2>Ваши характеристики</h2>
-<div id="myStats"></div>
-<h2>Игроки</h2>
-<div id="playersList"></div>
+
+  <div class="top">
+    <div class="title">Бункер</div>
+    <button id="endVotingBtn" disabled>Завершити голосування</button>
+  </div>
+
+  <div class="cat" id="catastropheBox">Катастрофа: —</div>
+
+  <div class="top-area">
+    <div class="my-panel">
+      <div class="section-title">Ваші характеристики</div>
+      <div id="myStats"></div>
+    </div>
+
+    <div class="actions">
+      <div class="section-title">Картки дій</div>
+      <div style="display:flex;gap:12px;flex-direction:column;">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="flex:1;background:rgba(255,255,255,0.03);padding:10px;border-radius:10px;">Поменяти здоров'я всім</div>
+          <button class="round-btn" style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent-start),var(--accent-end));border:none;"></button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="flex:1;background:rgba(255,255,255,0.03);padding:10px;border-radius:10px;">Вилікувати гравця</div>
+          <button class="round-btn" style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#34d399,#10b981);border:none;"></button>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px">Картки дій — лише дизайн зараз.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="players-wrap">
+    <div class="section-title" style="text-align:center;color:var(--soft);margin-bottom:6px;">Гравці</div>
+    <div class="players-grid" id="playersGrid"></div>
+  </div>
 
 <script type="module">
+// Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getDatabase, ref, onValue, update, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBDJs9FCbc7nJsBDokGNu5WtssemhSdt6A",
@@ -37,97 +160,250 @@ const firebaseConfig = {
   messagingSenderId: "769825223500",
   appId: "1:769825223500:web:189d1834abf3fa2634d5e9"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// room & player from localStorage (set in lobby)
 const room = localStorage.getItem("room");
 const player = localStorage.getItem("player");
-if (!room || !player) alert("Ошибка: вы не в комнате");
-
-const myStatsDiv = document.getElementById("myStats");
-const playersListDiv = document.getElementById("playersList");
-const disasterDiv = document.getElementById("disaster");
-
-// Слушаем катастрофу
-onValue(ref(db, `rooms/${room}/disaster`), snap => { disasterDiv.innerText = snap.val(); });
-
-const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
-const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
-function generateStats() {
-  return {
-    age: Math.floor(Math.random()*50)+18,
-    profession: professions[Math.floor(Math.random()*professions.length)],
-    hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
-    health: Math.floor(Math.random()*100)+"%",
-    bag: "Набор выживальщика",
-    fact1: 'Любит приключения',
-    fact2: 'Не доверяет незнакомцам',
-    fact1Open: false,
-    fact2Open: false
-  };
+if (!room || !player) {
+  alert("Помилка: ви не в кімнаті. Поверніться в лобі.");
+  throw new Error("no room/player");
 }
 
-// Создаем свои характеристики, если их нет
-onValue(ref(db, `rooms/${room}/players/${player}/stats`), async snap => {
-  let st = snap.val();
-  if (!st) {
-    st = generateStats();
-    await update(ref(db, `rooms/${room}/players/${player}`), { stats: st });
+// lists (shortened - можеш доповнювати)
+const professions = ['Стоматолог','Інженер','Повар','Пілот','Програміст','Фізик','Хірург','Психолог'];
+const hobbies     = ['Ігри','Спорт','Музика','Риболовля','Малювання','Танці'];
+const healthList  = ['Повністю здоровий','Трохи хворий','Потребує ліків','Слабке здоров\'я'];
+const bagList     = ['Аптечка','Набір виживальника','Гітара','Ноутбук','Радіо'];
+const factsList   = ['Любить пригоди','Не довіряє незнайомцям','Військовий досвід','Працьовитий','Колишній в’язень'];
+const phobias     = ['Темрява','Вода','Висота','Комахи','Простір'];
+const disasters   = [
+  'Зомбі-апокаліпсис',
+  'Пандемія невідомого вірусу',
+  'Падіння великого астероїда',
+  'Супервулканічне виверження',
+  'Відключення електроенергії по всій землі',
+  'Глобальна ядерна війна',
+  'Відкриття шкідливого штучного інтелекту',
+  'Раптове похолодання клімату',
+  'Екологічний колапс океанів'
+];
+
+const statOrder = ['age','profession','health','hobby','bag','fact1','fact2','gender','fertility','phobia'];
+const statNames = {
+  age:'Вік', profession:'Професія', health:'Здоров\'я', hobby:'Хобі', bag:'Багаж',
+  fact1:'Факт 1', fact2:'Факт 2', gender:'Стать', fertility:'Плодовитість', phobia:'Фобія'
+};
+
+function genOneStats(){
+  const age = Math.floor(Math.random()*50)+18;
+  const gender = Math.random() < 0.5 ? 'Чоловік' : 'Жінка';
+  const fertileChance = (age < 60) ? 0.3 : 0.6;
+  const fertility = Math.random() < fertileChance ? 'Плодовитий' : 'Безплідний';
+  const base = {
+    age,
+    profession: professions[Math.floor(Math.random()*professions.length)],
+    health: healthList[Math.floor(Math.random()*healthList.length)],
+    hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
+    bag: bagList[Math.floor(Math.random()*bagList.length)],
+    fact1: factsList[Math.floor(Math.random()*factsList.length)],
+    fact2: factsList[Math.floor(Math.random()*factsList.length)],
+    gender,
+    fertility,
+    phobia: phobias[Math.floor(Math.random()*phobias.length)],
+    kicked: false,
+    myKickVote: null
+  };
+  statOrder.forEach(k => base[k + 'Open'] = false);
+  return base;
+}
+
+async function ensureMyStats(){
+  const snap = await get(ref(db, `rooms/${room}/players/${player}/stats`));
+  if (!snap.exists() || !snap.val()){
+    const s = genOneStats();
+    await set(ref(db, `rooms/${room}/players/${player}/stats`), s);
   }
-  // Показываем все свои характеристики
-  myStatsDiv.innerHTML = `
-    <div class='character'>${st.age}</div>
-    <div class='character'>${st.profession}</div>
-    <div class='character'>${st.health}</div>
-    <div class='character'>${st.hobby}</div>
-    <div class='character'>${st.bag}</div>
-    <div class='character'>${st.fact1}</div>
-    <div class='character'>${st.fact2}</div>
-  `;
-});
+}
 
-// Слушаем всех игроков
-onValue(ref(db, `rooms/${room}/players`), snap => {
-  const players = snap.val();
-  playersListDiv.innerHTML = '';
-  for (let p in players) {
-    const stats = players[p].stats;
-    if (!stats) continue;
+function renderMyPanel(stats){
+  const root = document.getElementById('myStats');
+  root.innerHTML = '';
+  statOrder.forEach(k => {
+    const row = document.createElement('div'); row.className='stat-row';
+    const key = document.createElement('div'); key.className='stat-key'; key.textContent = statNames[k] + ':';
+    const valWrap = document.createElement('div'); valWrap.className='stat-val';
+    // own badge (shows value). clickable to open for others
+    const badge = document.createElement('div');
+    badge.className = 'badge own';
+    badge.style.display='inline-block';
+    badge.style.cursor = 'pointer';
+    badge.textContent = stats[k];
+    // if this stat already open for others, append check
+    if (stats[k + 'Open']) {
+      const c = document.createElement('span'); c.className='check'; c.textContent=' ✔'; badge.appendChild(c);
+      badge.style.background = 'linear-gradient(135deg,#34d399,#10b981)'; // green
+    }
+    badge.onclick = async () => {
+      // set open=true for this stat in our stats (so others see it)
+      const updates = {}; updates[`rooms/${room}/players/${player}/stats/${k}Open`] = true;
+      await update(ref(db), updates);
+    };
+    valWrap.appendChild(badge);
+    row.appendChild(key); row.appendChild(valWrap);
+    root.appendChild(row);
+  });
+}
 
-    const container = document.createElement('div');
-    container.className = 'player';
+function renderPlayers(allPlayers){
+  const grid = document.getElementById('playersGrid');
+  grid.innerHTML = '';
 
-    // Имя по центру
-    const nameDiv = document.createElement('div');
-    nameDiv.innerText = p;
-    nameDiv.style.fontWeight = 'bold';
-    nameDiv.style.marginBottom = '8px';
-    container.appendChild(nameDiv);
+  // counts for kicks (who is targeted by how many myKickVote)
+  const kickCounts = {};
+  Object.keys(allPlayers).forEach(n => {
+    const s = allPlayers[n].stats || {};
+    const t = s.myKickVote;
+    if (t) kickCounts[t] = (kickCounts[t]||0) + 1;
+  });
 
-    // Характеристики
-    ['age','profession','health','hobby','bag','fact1','fact2'].forEach(key => {
-      const charDiv = document.createElement('div');
-      charDiv.className = 'character';
-      if (p === player) {
-        // Для себя кнопка открыть
-        const btn = document.createElement('button');
-        btn.innerText = stats[key];
-        btn.onclick = () => {};
-        charDiv.appendChild(btn);
-      } else {
-        const btn = document.createElement('button');
-        btn.innerText = stats[key + 'Open'] ? stats[key] : 'скрыто';
-        btn.disabled = stats[key + 'Open'];
-        btn.onclick = () => {};
-        charDiv.appendChild(btn);
+  // determine if all alive players have voted (myKickVote != null)
+  const names = Object.keys(allPlayers);
+  const alive = names.filter(n => !(allPlayers[n].stats && allPlayers[n].stats.kicked));
+  const allVoted = alive.every(n => (allPlayers[n].stats && allPlayers[n].stats.myKickVote));
+  document.getElementById('endVotingBtn').disabled = !allVoted;
+
+  names.forEach(name => {
+    const playerObj = allPlayers[name];
+    const s = playerObj.stats || {};
+    const card = document.createElement('div'); card.className='player-card';
+    if (s.kicked) card.classList.add('kicked');
+
+    // highlight if this player is the target of my vote (visual feedback)
+    const mySnap = allPlayers[player] && allPlayers[player].stats ? allPlayers[player].stats : {};
+    if (mySnap.myKickVote && mySnap.myKickVote === name) {
+      card.classList.add('voted');
+    }
+
+    // name
+    const nm = document.createElement('div'); nm.className='player-name'; nm.textContent = name;
+    card.appendChild(nm);
+
+    // stats list: label left, badge right (red hidden / green open). For own player — badge is own style clickable
+    statOrder.forEach(k => {
+      const line = document.createElement('div'); line.className='stat-line';
+      const left = document.createElement('div'); left.style.color='var(--muted)'; left.textContent = statNames[k];
+      const right = document.createElement('div');
+      const opened = !!s[k + 'Open'];
+      const badge = document.createElement('div');
+      badge.className = 'badge ' + (opened ? 'open' : 'hidden');
+      badge.style.display='inline-block';
+      badge.textContent = opened ? String(s[k]) : 'Приховано';
+      if (opened) {
+        const check = document.createElement('span'); check.className='check'; check.textContent=' ✔';
+        badge.appendChild(check);
       }
-      container.appendChild(charDiv);
+      // if this is me — show own badges (gold) and make clickable to open for others
+      if (name === player && !s.kicked) {
+        badge.className = 'badge own';
+        badge.onclick = async () => {
+          const updates = {}; updates[`rooms/${room}/players/${player}/stats/${k}Open`] = true;
+          await update(ref(db), updates);
+        };
+      } else {
+        // not my card — clicking does nothing (others open on their side)
+      }
+      right.appendChild(badge);
+      line.appendChild(left); line.appendChild(right);
+      card.appendChild(line);
     });
 
-    playersListDiv.appendChild(container);
+    // actions (if not me and not kicked)
+    if (name !== player && !(s.kicked)) {
+      const actions = document.createElement('div'); actions.className='player-actions';
+      // simple "Проголосувати" to give right to speak: toggle my Kick vote target highlight
+      const btnSpeak = document.createElement('button'); btnSpeak.className='btn-small'; btnSpeak.textContent='Проголосувати';
+      btnSpeak.onclick = async () => {
+        // set myKickVote in my stats to this name (so everyone knows I voted for them)
+        const updates = {}; updates[`rooms/${room}/players/${player}/stats/myKickVote`] = name;
+        await update(ref(db), updates);
+      };
+      // kick count button (shows how many want to kick)
+      const kc = kickCounts[name] || 0;
+      const btnKick = document.createElement('button'); btnKick.className='btn-kick';
+      btnKick.textContent = `Вигнати (${kc})`;
+      btnKick.onclick = async () => {
+        // also set myKickVote to this name (same mechanism)
+        const updates = {}; updates[`rooms/${room}/players/${player}/stats/myKickVote`] = name;
+        await update(ref(db), updates);
+      };
+
+      actions.appendChild(btnSpeak); actions.appendChild(btnKick);
+      card.appendChild(actions);
+    }
+
+    grid.appendChild(card);
+  });
+}
+
+// ensure my stats exist, then start listening
+async function startSync(){
+  await ensureMyStats();
+
+  // if room has no disaster, set random one
+  const roomSnap = await get(ref(db, `rooms/${room}/disaster`));
+  if (!roomSnap.exists() || !roomSnap.val()) {
+    const d = disasters[Math.floor(Math.random()*disasters.length)];
+    await update(ref(db, `rooms/${room}`), { disaster: d });
   }
+
+  // listen players subtree
+  const playersRef = ref(db, `rooms/${room}/players`);
+  onValue(playersRef, (snap) => {
+    const val = snap.val() || {};
+    // update catastrophe display
+    get(ref(db, `rooms/${room}/disaster`)).then(s => {
+      const d = s.val() || '—';
+      document.getElementById('catastropheBox').textContent = 'Катастрофа: ' + d;
+    });
+    // render my panel if my stats exist
+    if (val[player] && val[player].stats) renderMyPanel(val[player].stats);
+    // render others
+    renderPlayers(val);
+  });
+}
+
+// end voting: only allowed when all alive players have set myKickVote
+document.getElementById('endVotingBtn').addEventListener('click', async () => {
+  // read all players
+  const snap = await get(ref(db, `rooms/${room}/players`));
+  const all = snap.val() || {};
+  // count votes
+  const counts = {};
+  Object.keys(all).forEach(n => {
+    const t = all[n].stats && all[n].stats.myKickVote;
+    if (t) counts[t] = (counts[t]||0)+1;
+  });
+  // find max
+  let max = 0; let tops = [];
+  Object.keys(counts).forEach(t => {
+    if (counts[t] > max) { max = counts[t]; tops = [t]; }
+    else if (counts[t] === max) tops.push(t);
+  });
+  if (tops.length === 1 && max > 0) {
+    // kick that player
+    const toKick = tops[0];
+    await update(ref(db, `rooms/${room}/players/${toKick}/stats`), { kicked: true });
+  }
+  // reset all myKickVote fields to null
+  const updates = {};
+  Object.keys(all).forEach(n => updates[`rooms/${room}/players/${n}/stats/myKickVote`] = null);
+  await update(ref(db), updates);
 });
+
+// start
+startSync();
 </script>
 </body>
 </html>
