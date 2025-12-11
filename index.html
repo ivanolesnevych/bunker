@@ -1,24 +1,46 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Бункер — Онлайн</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #e6e6ff; }
     #container { max-width: 750px; margin: 0 auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
     h1 { text-align: center; margin-bottom: 20px; }
-    h2 { margin-top: 25px; }
-    input, button, select { padding: 12px; margin: 8px 0; width: 100%; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-    button { background: #4a4aff; color: white; border: none; cursor: pointer; }
+
+    .lobby-player {
+      padding: 12px;
+      margin: 8px 0;
+      background: #f2f2ff;
+      border: 1px solid #d6d6ff;
+      border-radius: 12px;
+      font-size: 17px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    button {
+      padding: 12px;
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+      background: #4a4aff;
+      color: white;
+      font-size: 17px;
+      cursor: pointer;
+    }
     button:hover { background: #3333ff; }
-    .player { padding: 10px; background: #f5f5ff; margin: 6px 0; border-radius: 8px; border: 1px solid #ddd; }
-    .card { background: #fafaff; padding: 15px; border-radius: 12px; border: 1px solid #ddd; }
+
+    #gameSection { display: none; margin-top: 20px; }
+    #startGameBtn { background: #00b359; }
   </style>
 </head>
 <body>
   <div id="container">
     <h1>Бункер — Онлайн</h1>
+
     <h2>Создать комнату</h2>
     <button id="createRoom">Создать</button>
 
@@ -27,26 +49,26 @@
     <input id="playerNameInput" placeholder="Ваше имя" />
     <button id="joinRoom">Присоединиться</button>
 
-    <h2>Катастрофа</h2>
-    <button id="generateDisaster">Сгенерировать катастрофу</button>
-    <div id="disaster" class="card"></div>
+    <h2>Лобби игроков</h2>
+    <div id="playersLobby"></div>
 
-    <h2>Игроки</h2>
-    <div id="players"></div>
+    <button id="startGameBtn">Начать игру</button>
 
-    <h2>Получить характеристики</h2>
-    <button id="getStats">Сгенерировать характеристики</button>
-    <div id="stats" class="card"></div>
+    <div id="gameSection">
+      <h2>Катастрофа</h2>
+      <div id="disaster"></div>
+      <h2>Ваши характеристики</h2>
+      <div id="stats"></div>
+    </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+    import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBDJs9FCbc7nJsBDokGNu5WtssemhSdt6A",
       authDomain: "bunkergame-3e81c.firebaseapp.com",
-      databaseURL: "https://bunkergame-3e81c-default-rtdb.europe-west1.firebasedatabase.app/",
       projectId: "bunkergame-3e81c",
       storageBucket: "bunkergame-3e81c.firebasestorage.app",
       messagingSenderId: "769825223500",
@@ -61,77 +83,96 @@
 
     const createRoomBtn = document.getElementById('createRoom');
     const joinRoomBtn = document.getElementById('joinRoom');
-    const getStatsBtn = document.getElementById('getStats');
-    const genDisasterBtn = document.getElementById('generateDisaster');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const playersLobby = document.getElementById('playersLobby');
 
-    createRoomBtn.onclick = () => {
+    createRoomBtn.onclick = async () => {
       const roomId = Math.random().toString(36).substring(2, 7);
       currentRoom = roomId;
-      set(ref(db, 'rooms/' + roomId), { players: {}, disaster: null })
-        .then(() => alert('Комната создана: ' + roomId))
-        .catch(err => console.error(err));
+      alert("Комната создана: " + roomId);
+
+      await set(ref(db, 'rooms/' + roomId), {
+        players: {},
+        started: false,
+        disaster: null
+      });
     };
 
-    joinRoomBtn.onclick = () => {
+    joinRoomBtn.onclick = async () => {
       const roomId = document.getElementById('roomIdInput').value;
       const name = document.getElementById('playerNameInput').value;
-      if (!roomId || !name) return alert('Заполните поля');
+      if (!roomId || !name) return alert("Заполните поля");
+
       currentRoom = roomId;
       playerName = name;
 
-      set(ref(db, `rooms/${roomId}/players/${name}`), { stats: null });
+      await set(ref(db, `rooms/${roomId}/players/${name}`), {
+        stats: null
+      });
 
-      onValue(ref(db, `rooms/${roomId}/players`), snapshot => {
-        const players = snapshot.val() || {};
-        const container = document.getElementById('players');
-        container.innerHTML = '';
+      const lobbyRef = ref(db, `rooms/${roomId}/players`);
+      onValue(lobbyRef, snap => {
+        const players = snap.val() || {};
+        playersLobby.innerHTML = '';
         for (let p in players) {
           const div = document.createElement('div');
-          div.className = 'player';
-          div.innerText = p + (players[p].stats ? ' — характеристики получены' : '');
-          container.appendChild(div);
+          div.className = "lobby-player";
+          div.innerHTML = `${p} <span>${players[p].stats ? "готов" : "ожидает"}</span>`;
+          playersLobby.appendChild(div);
         }
       });
 
-      onValue(ref(db, `rooms/${roomId}/disaster`), snapshot => {
-        document.getElementById('disaster').innerText = snapshot.val() || '';
+      onValue(ref(db, `rooms/${roomId}/started`), snap => {
+        if (snap.val() === true) startGame();
       });
     };
 
-    const disasters = ['Зомби-апокалипсис','Глобальная ядерная война','Пандемия вируса','Падение астероида','Извержение супервулкана','Экологический коллапс','Восстание ИИ','Замерзание Земли'];
-
-    genDisasterBtn.onclick = () => {
-      if (!currentRoom) return alert('Создай или войди в комнату');
-      const d = disasters[Math.floor(Math.random() * disasters.length)];
-      update(ref(db, `rooms/${currentRoom}`), { disaster: d });
+    startGameBtn.onclick = async () => {
+      if (!currentRoom) return;
+      await update(ref(db, `rooms/${currentRoom}`), {
+        started: true,
+        disaster: disasters[Math.floor(Math.random()*disasters.length)]
+      });
     };
 
-    const professions = ['Доктор','Инженер','Биолог','Повар','Охранник','Учёный','Пилот','Строитель'];
-    const hobbies = ['Чтение','Рисование','Фитнес','Игры','Рыбалка','Музыка','Плавание'];
-    const phobias = ['Темнота','Вода','Высота','Насекомые','Пространства'];
-    const bags = ['Нож','Аптечка','Фонарик','Верёвка','Еда','Лопата'];
+    const disasters = [
+      'Зомби-апокалипсис','Пандемия','Ядерная война','Астероид','Холодный мир','Супервулкан','ИИ захватил мир'
+    ];
+
+    const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
+    const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
 
     function generateStats() {
       return {
-        age: Math.floor(Math.random() * 60) + 18,
-        profession: professions[Math.floor(Math.random() * professions.length)],
-        health: Math.floor(Math.random() * 100) + '%',
-        bag: bags[Math.floor(Math.random() * bags.length)],
-        phobia: phobias[Math.floor(Math.random() * phobias.length)],
-        hobby: hobbies[Math.floor(Math.random() * hobbies.length)],
-        fact1: 'Любит приключения',
-        fact2: 'Не доверяет незнакомцам'
+        age: Math.floor(Math.random()*50)+18,
+        profession: professions[Math.floor(Math.random()*professions.length)],
+        hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
+        health: Math.floor(Math.random()*100)+"%",
+        bag: "Набор выживальщика"
       };
     }
 
-    getStatsBtn.onclick = () => {
-      if (!currentRoom || !playerName) return alert('Вы не в комнате');
-      const stats = generateStats();
+    function startGame() {
+      document.getElementById('gameSection').style.display = 'block';
 
-      document.getElementById('stats').innerHTML = `Возраст: ${stats.age}<br>Профессия: ${stats.profession}<br>Здоровье: ${stats.health}<br>Багаж: ${stats.bag}<br>Фобия: ${stats.phobia}<br>Хобби: ${stats.hobby}<br>Интересный факт 1: ${stats.fact1}<br>Интересный факт 2: ${stats.fact2}`;
+      onValue(ref(db, `rooms/${currentRoom}/disaster`), snap => {
+        document.getElementById('disaster').innerText = snap.val();
+      });
 
-      update(ref(db, `rooms/${currentRoom}/players/${playerName}`), { stats });
-    };
+      const myStats = generateStats();
+      update(ref(db, `rooms/${currentRoom}/players/${playerName}`), {
+        stats: myStats
+      });
+
+      document.getElementById('stats').innerHTML = `
+        Возраст: ${myStats.age}<br>
+        Профессия: ${myStats.profession}<br>
+        Здоровье: ${myStats.health}<br>
+        Хобби: ${myStats.hobby}<br>
+        Багаж: ${myStats.bag}<br>
+      `;
+    }
+
   </script>
 </body>
 </html>
