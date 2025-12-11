@@ -33,8 +33,8 @@
     }
     button:hover { background: #3333ff; }
 
-    #gameSection { display: none; margin-top: 20px; }
     #startGameBtn { background: #00b359; }
+    #startGameBtn:hover { background: #008f46; }
   </style>
 </head>
 <body>
@@ -53,13 +53,6 @@
     <div id="playersLobby"></div>
 
     <button id="startGameBtn">Начать игру</button>
-
-    <div id="gameSection">
-      <h2>Катастрофа</h2>
-      <div id="disaster"></div>
-      <h2>Ваши характеристики</h2>
-      <div id="stats"></div>
-    </div>
   </div>
 
   <script type="module">
@@ -87,6 +80,7 @@
     const startGameBtn = document.getElementById('startGameBtn');
     const playersLobby = document.getElementById('playersLobby');
 
+    // Создать комнату
     createRoomBtn.onclick = async () => {
       const roomId = Math.random().toString(36).substring(2, 7);
       currentRoom = roomId;
@@ -99,6 +93,7 @@
       });
     };
 
+    // Вступить в комнату
     joinRoomBtn.onclick = async () => {
       const roomId = document.getElementById('roomIdInput').value;
       const name = document.getElementById('playerNameInput').value;
@@ -107,10 +102,16 @@
       currentRoom = roomId;
       playerName = name;
 
+      // Сохраняем игрока
       await set(ref(db, `rooms/${roomId}/players/${name}`), {
         stats: null
       });
 
+      // Сохраняем в браузере для game.html
+      localStorage.setItem("room", currentRoom);
+      localStorage.setItem("player", playerName);
+
+      // Обновление лобби
       const lobbyRef = ref(db, `rooms/${roomId}/players`);
       onValue(lobbyRef, snap => {
         const players = snap.val() || {};
@@ -123,56 +124,28 @@
         }
       });
 
+      // Если игра началась — переходим на game.html
       onValue(ref(db, `rooms/${roomId}/started`), snap => {
-        if (snap.val() === true) startGame();
+        if (snap.val() === true) {
+          window.location.href = "game.html";
+        }
       });
     };
 
+    // Запуск игры (только создатель жмёт)
     startGameBtn.onclick = async () => {
-      if (!currentRoom) return;
+      if (!currentRoom) return alert("Вы не в комнате");
+
+      const disasters = [
+        'Зомби-апокалипсис','Пандемия','Ядерная война','Астероид',
+        'Холодный мир','Супервулкан','ИИ захватил мир'
+      ];
+
       await update(ref(db, `rooms/${currentRoom}`), {
         started: true,
         disaster: disasters[Math.floor(Math.random()*disasters.length)]
       });
     };
-
-    const disasters = [
-      'Зомби-апокалипсис','Пандемия','Ядерная война','Астероид','Холодный мир','Супервулкан','ИИ захватил мир'
-    ];
-
-    const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
-    const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
-
-    function generateStats() {
-      return {
-        age: Math.floor(Math.random()*50)+18,
-        profession: professions[Math.floor(Math.random()*professions.length)],
-        hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
-        health: Math.floor(Math.random()*100)+"%",
-        bag: "Набор выживальщика"
-      };
-    }
-
-    function startGame() {
-      document.getElementById('gameSection').style.display = 'block';
-
-      onValue(ref(db, `rooms/${currentRoom}/disaster`), snap => {
-        document.getElementById('disaster').innerText = snap.val();
-      });
-
-      const myStats = generateStats();
-      update(ref(db, `rooms/${currentRoom}/players/${playerName}`), {
-        stats: myStats
-      });
-
-      document.getElementById('stats').innerHTML = `
-        Возраст: ${myStats.age}<br>
-        Профессия: ${myStats.profession}<br>
-        Здоровье: ${myStats.health}<br>
-        Хобби: ${myStats.hobby}<br>
-        Багаж: ${myStats.bag}<br>
-      `;
-    }
 
   </script>
 </body>
