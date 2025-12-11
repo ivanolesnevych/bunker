@@ -1,22 +1,28 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Игра</title>
-  <style>
-    body { font-family: Arial; padding: 20px; background: #eef; }
-    #info { white-space: pre-line; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бункер — Игра</title>
+<style>
+body { font-family: Arial; padding: 20px; background: #eef; }
+h1, h2 { text-align: center; }
+#disaster { font-weight: bold; font-size: 20px; text-align: center; margin-bottom: 20px; }
+#myStats, #playersList { margin: 10px auto; max-width: 700px; padding: 15px; background: #f5f5ff; border-radius: 12px; border: 1px solid #ccc; }
+.player { background: #fafaff; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; padding: 10px; text-align: center; }
+.character { margin: 5px 0; }
+button { padding: 6px 10px; border-radius: 6px; border: none; background: #4a4aff; color: white; cursor: pointer; }
+button:hover { background: #3333ff; }
+</style>
 </head>
 <body>
-
 <h1>Бункер — Игра началась</h1>
-
 <h2>Катастрофа</h2>
-<div id="disaster"></div>
-
+<div id="disaster">...</div>
 <h2>Ваши характеристики</h2>
-<div id="stats"></div>
+<div id="myStats"></div>
+<h2>Игроки</h2>
+<div id="playersList"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -37,47 +43,91 @@ const db = getDatabase(app);
 
 const room = localStorage.getItem("room");
 const player = localStorage.getItem("player");
+if (!room || !player) alert("Ошибка: вы не в комнате");
 
-if (!room || !player) {
-  alert("Ошибка: вы не в комнате");
-}
+const myStatsDiv = document.getElementById("myStats");
+const playersListDiv = document.getElementById("playersList");
+const disasterDiv = document.getElementById("disaster");
 
-// слушаем катастрофу
-onValue(ref(db, `rooms/${room}/disaster`), snap => {
-  document.getElementById('disaster').innerText = snap.val();
-});
+// Слушаем катастрофу
+onValue(ref(db, `rooms/${room}/disaster`), snap => { disasterDiv.innerText = snap.val(); });
 
-// если у игрока ещё нет характеристик — генерируем
-async function ensureStats() {
-  const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
-  const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
-
-  const stats = {
+const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
+const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
+function generateStats() {
+  return {
     age: Math.floor(Math.random()*50)+18,
     profession: professions[Math.floor(Math.random()*professions.length)],
     hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
-    health: Math.floor(Math.random()*100) + "%",
-    bag: "Набор выживальщика"
+    health: Math.floor(Math.random()*100)+"%",
+    bag: "Набор выживальщика",
+    fact1: 'Любит приключения',
+    fact2: 'Не доверяет незнакомцам',
+    fact1Open: false,
+    fact2Open: false
   };
-
-  await update(ref(db, `rooms/${room}/players/${player}`), { stats });
-  return stats;
 }
 
-// слушаем свои характеристики
+// Создаем свои характеристики, если их нет
 onValue(ref(db, `rooms/${room}/players/${player}/stats`), async snap => {
   let st = snap.val();
-  if (!st) st = await ensureStats();
-
-  document.getElementById('stats').innerHTML = `
-    Возраст: ${st.age}<br>
-    Профессия: ${st.profession}<br>
-    Здоровье: ${st.health}<br>
-    Хобби: ${st.hobby}<br>
-    Багаж: ${st.bag}<br>
+  if (!st) {
+    st = generateStats();
+    await update(ref(db, `rooms/${room}/players/${player}`), { stats: st });
+  }
+  // Показываем все свои характеристики
+  myStatsDiv.innerHTML = `
+    <div class='character'>${st.age}</div>
+    <div class='character'>${st.profession}</div>
+    <div class='character'>${st.health}</div>
+    <div class='character'>${st.hobby}</div>
+    <div class='character'>${st.bag}</div>
+    <div class='character'>${st.fact1}</div>
+    <div class='character'>${st.fact2}</div>
   `;
 });
-</script>
 
+// Слушаем всех игроков
+onValue(ref(db, `rooms/${room}/players`), snap => {
+  const players = snap.val();
+  playersListDiv.innerHTML = '';
+  for (let p in players) {
+    const stats = players[p].stats;
+    if (!stats) continue;
+
+    const container = document.createElement('div');
+    container.className = 'player';
+
+    // Имя по центру
+    const nameDiv = document.createElement('div');
+    nameDiv.innerText = p;
+    nameDiv.style.fontWeight = 'bold';
+    nameDiv.style.marginBottom = '8px';
+    container.appendChild(nameDiv);
+
+    // Характеристики
+    ['age','profession','health','hobby','bag','fact1','fact2'].forEach(key => {
+      const charDiv = document.createElement('div');
+      charDiv.className = 'character';
+      if (p === player) {
+        // Для себя кнопка открыть
+        const btn = document.createElement('button');
+        btn.innerText = stats[key];
+        btn.onclick = () => {};
+        charDiv.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.innerText = stats[key + 'Open'] ? stats[key] : 'скрыто';
+        btn.disabled = stats[key + 'Open'];
+        btn.onclick = () => {};
+        charDiv.appendChild(btn);
+      }
+      container.appendChild(charDiv);
+    });
+
+    playersListDiv.appendChild(container);
+  }
+});
+</script>
 </body>
 </html>
