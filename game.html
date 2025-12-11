@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Игра</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #eef; }
+    #info { white-space: pre-line; }
+  </style>
+</head>
+<body>
+
+<h1>Бункер — Игра началась</h1>
+
+<h2>Катастрофа</h2>
+<div id="disaster"></div>
+
+<h2>Ваши характеристики</h2>
+<div id="stats"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDJs9FCbc7nJsBDokGNu5WtssemhSdt6A",
+  authDomain: "bunkergame-3e81c.firebaseapp.com",
+  databaseURL: "https://bunkergame-3e81c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "bunkergame-3e81c",
+  storageBucket: "bunkergame-3e81c.firebasestorage.app",
+  messagingSenderId: "769825223500",
+  appId: "1:769825223500:web:189d1834abf3fa2634d5e9"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const room = localStorage.getItem("room");
+const player = localStorage.getItem("player");
+
+if (!room || !player) {
+  alert("Ошибка: вы не в комнате");
+}
+
+// слушаем катастрофу
+onValue(ref(db, `rooms/${room}/disaster`), snap => {
+  document.getElementById('disaster').innerText = snap.val();
+});
+
+// если у игрока ещё нет характеристик — генерируем
+async function ensureStats() {
+  const professions = ['Доктор','Инженер','Повар','Пилот','Строитель','Учёный'];
+  const hobbies = ['Игры','Фитнес','Музыка','Рыбалка','Рисование'];
+
+  const stats = {
+    age: Math.floor(Math.random()*50)+18,
+    profession: professions[Math.floor(Math.random()*professions.length)],
+    hobby: hobbies[Math.floor(Math.random()*hobbies.length)],
+    health: Math.floor(Math.random()*100) + "%",
+    bag: "Набор выживальщика"
+  };
+
+  await update(ref(db, `rooms/${room}/players/${player}`), { stats });
+  return stats;
+}
+
+// слушаем свои характеристики
+onValue(ref(db, `rooms/${room}/players/${player}/stats`), async snap => {
+  let st = snap.val();
+  if (!st) st = await ensureStats();
+
+  document.getElementById('stats').innerHTML = `
+    Возраст: ${st.age}<br>
+    Профессия: ${st.profession}<br>
+    Здоровье: ${st.health}<br>
+    Хобби: ${st.hobby}<br>
+    Багаж: ${st.bag}<br>
+  `;
+});
+</script>
+
+</body>
+</html>
